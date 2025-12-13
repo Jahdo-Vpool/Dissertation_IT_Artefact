@@ -5,9 +5,6 @@ Simple script to get news from NewsAPI
 What this does:
 - Searches for TAN and SPY news
 - Saves to CSV files
-- That's it!
-
-Run: python 1_collect_news.py
 """
 
 from newsapi import NewsApiClient
@@ -134,7 +131,6 @@ def collect_news(ticker, search_terms):
     print(f"Collected {len(df)} articles")
 
     return df
-
 
 def main():
     """Main function - run everything."""

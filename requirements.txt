@@ -1,0 +1,28 @@
+# Data manipulation
+pandas>=2.0.0
+numpy>=1.24.0
+
+# News collection
+newsapi-python>=0.2.7
+
+# Price data
+yfinance>=0.2.28
+
+# Sentiment analysis - VADER
+vaderSentiment>=3.3.2
+
+# Plotting
+matplotlib>=3.7.0
+
+# Environment variables
+python-dotenv>=1.0.0
+
+# FinBERT sentiment
+transformers>=4.30.0
+torch>=2.0.0
+
+# GARCH modeling
+arch>=6.2.0
+
+# Statistical analysis
+scipy>=1.10.0

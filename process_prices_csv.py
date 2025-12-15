@@ -10,7 +10,6 @@ What this does:
 - Computes DAILY returns (%)
 - Saves as *_prices_processed.csv
 
-Run: python convert_manual_prices.py
 """
 
 import pandas as pd

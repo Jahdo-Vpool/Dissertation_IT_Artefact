@@ -1,109 +1,97 @@
 """
-Step 1: Collect News Articles
-Simple script to get news from NewsAPI
+Collect NEWS from GDELT - Maximum Coverage
+Free, unlimited, historical data!
 
 What this does:
-- Searches for TAN and SPY news
-- Saves to CSV files
+- Collects 6-12 months of news articles
+- No API key needed
+- Unlimited requests
+- Matches your price data period
+
+Run: python collect_news_gdelt_full.py
 """
 
-from newsapi import NewsApiClient
+from gdeltdoc import GdeltDoc, Filters
 import pandas as pd
 from datetime import datetime, timedelta
-import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+import time
 
 # ============================================
-# CONFIGURATION
+# CONFIGURATION - SET YOUR DATE RANGE
 # ============================================
 
-# Get API key from environment variable
-API_KEY = os.getenv('NEWS_API_KEY')
+# Match these to your EXACT price data range!
+START_DATE = '2020-12-01'  # ← Change to your price start date
+END_DATE = '2025-12-12'  # ← Change to your price end date
 
-if not API_KEY:
-    print("\nERROR: NEWS_API_KEY not set!")
-    exit(1)
+# Calculate period
+start_dt = datetime.strptime(START_DATE, '%Y-%m-%d')
+end_dt = datetime.strptime(END_DATE, '%Y-%m-%d')
+days = (end_dt - start_dt).days
+months = days / 30
 
-# How many days back to search (from .env or default)
-DAYS_BACK = int(os.getenv('DAYS_BACK', '30'))
-
-# How many articles to collect per ETF (from .env or default)
-ARTICLES_PER_ETF = int(os.getenv('ARTICLES_PER_ETF', '50'))
+print(f"\nCollection Period:")
+print(f"  Start: {START_DATE}")
+print(f"  End: {END_DATE}")
+print(f"  Duration: {days} days (~{months:.1f} months)")
 
 
 # ============================================
 # MAIN CODE
 # ============================================
 
-def collect_news(ticker, search_terms):
+def collect_gdelt_news(ticker, keywords, max_articles=500):
     """
-    Collect news for a ticker.
+    Collect news from GDELT for a ticker.
 
-    ticker: Stock symbol (e.g., 'TAN')
-    search_terms: List of things to search for
+    ticker: Stock symbol
+    keywords: List of search terms
+    max_articles: Maximum articles to collect (GDELT can return thousands!)
     """
 
     print(f"\n{'=' * 60}")
-    print(f"Collecting news for {ticker}")
+    print(f"Collecting GDELT news for {ticker}")
     print(f"{'=' * 60}")
 
-    # Set up NewsAPI
-    newsapi = NewsApiClient(api_key=API_KEY)
+    # Initialize GDELT
+    gd = GdeltDoc()
 
-    # Date range
-    end_date = datetime.now()
-    start_date = end_date - timedelta(days=DAYS_BACK)
-
-    print(f"  Date range: {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}")
-
-    # Store all articles
     all_articles = []
 
-    # Search for each term
-    for term in search_terms:
-        print(f"  Searching: '{term}'...")
+    for keyword in keywords:
+        print(f"\n  Searching: '{keyword}'...")
 
         try:
-            # Call NewsAPI
-            response = newsapi.get_everything(
-                q=term,
-                language='en',
-                sort_by='publishedAt',
-                from_param=start_date.strftime('%Y-%m-%d'),
-                to=end_date.strftime('%Y-%m-%d'),
-                page_size=20
+            # Create filter
+            f = Filters(
+                keyword=keyword,
+                start_date=START_DATE,
+                end_date=END_DATE,
+                num_records=250  # Max per search term
             )
 
-            # Process articles
-            if response['status'] == 'ok':
-                for article in response['articles']:
-                    # Skip if no content
-                    if not article.get('description'):
-                        continue
+            # Get articles
+            articles = gd.article_search(f)
 
-                    # Get text content
-                    content = article.get('description', '')
-                    if article.get('content'):
-                        content = content + ' ' + article['content']
+            if articles is not None and len(articles) > 0:
+                print(f"    Found {len(articles)} articles")
 
-                    # Clean up [+123 chars] that NewsAPI adds
-                    if '[+' in content:
-                        content = content.split('[+')[0]
-
-                    # Store article
+                # Process each article
+                for idx, row in articles.iterrows():
+                    # GDELT gives us the date, title, domain, URL
                     all_articles.append({
                         'ticker': ticker,
-                        'date': article['publishedAt'][:10],  # Just the date
-                        'title': article['title'],
-                        'content': content,
-                        'source': article['source']['name'],
-                        'url': article['url']
+                        'date': row['seendate'][:10] if 'seendate' in row else START_DATE,
+                        'title': row['title'] if 'title' in row else '',
+                        'content': row['title'] if 'title' in row else '',  # Use title as content
+                        'source': row['domain'] if 'domain' in row else 'Unknown',
+                        'url': row['url'] if 'url' in row else ''
                     })
 
-                print(f"    Found {len(response['articles'])} articles")
+                # Small delay to be polite
+                time.sleep(1)
+            else:
+                print(f"    No articles found")
 
         except Exception as e:
             print(f"    Error: {e}")
@@ -113,77 +101,131 @@ def collect_news(ticker, search_terms):
     df = pd.DataFrame(all_articles)
 
     if df.empty:
-        print(f"No articles found for {ticker}")
+        print(f"\n  No articles found for {ticker}")
         return None
 
     # Remove duplicates (same URL)
+    original_count = len(df)
     df = df.drop_duplicates(subset=['url'], keep='first')
+    print(f"\n  Removed {original_count - len(df)} duplicates")
 
-    # Keep only articles with enough content
-    df = df[df['content'].str.len() > 50]
+    # Remove articles with no title
+    df = df[df['title'].str.len() > 10]
+
+    # Limit to max_articles
+    if len(df) > max_articles:
+        print(f"  Limiting to {max_articles} most recent articles")
+        df = df.sort_values('date', ascending=False).head(max_articles)
 
     # Sort by date
-    df = df.sort_values('date', ascending=False)
+    df = df.sort_values('date', ascending=False).reset_index(drop=True)
 
-    # Limit to target number
-    df = df.head(ARTICLES_PER_ETF)
+    # Show statistics
+    print(f"\n  FINAL COLLECTION:")
+    print(f"    Total articles: {len(df)}")
+    print(f"    Unique dates: {df['date'].nunique()}")
+    print(f"    Date range: {df['date'].min()} to {df['date'].max()}")
 
-    print(f"Collected {len(df)} articles")
+    # Date coverage
+    articles_per_day = df.groupby('date').size()
+    print(f"    Days with articles: {len(articles_per_day)}/{days}")
+    print(f"    Average per day: {articles_per_day.mean():.1f}")
+    print(f"    Coverage: {len(articles_per_day) / days * 100:.1f}%")
+
+    # Show top sources
+    top_sources = df['source'].value_counts().head(5)
+    print(f"\n    Top sources:")
+    for source, count in top_sources.items():
+        print(f"      {source}: {count} articles")
 
     return df
 
+
 def main():
-    """Main function - run everything."""
+    """Main function."""
 
     print("\n" + "=" * 60)
-    print("NEWS COLLECTION")
+    print("GDELT NEWS COLLECTION - MAXIMUM COVERAGE")
     print("=" * 60)
-    print(f"Configuration:")
-    print(f"  Days back: {DAYS_BACK}")
-    print(f"  Articles per ETF: {ARTICLES_PER_ETF}")
+    print("\nFree, unlimited, historical data!")
+    print("Perfect for academic research")
 
-    # Collect TAN news
-    tan_articles = collect_news(
+    # ============================================
+    # COLLECT TAN NEWS
+    # ============================================
+
+    tan_articles = collect_gdelt_news(
         ticker='TAN',
-        search_terms=[
-            'solar energy stocks',
-            'renewable energy ETF',
-            'clean energy investment',
-            'solar power industry'
-        ]
+        keywords=[
+            'solar energy',
+            'solar power',
+            'renewable energy',
+            'clean energy',
+            'solar stocks',
+            'solar industry',
+            'photovoltaic',
+            'solar panel',
+            'green energy',
+            'TAN ETF'
+        ],
+        max_articles=1000  # Collect up to 1000 articles
     )
 
-    # Collect SPY news
-    spy_articles = collect_news(
+    # ============================================
+    # COLLECT SPY NEWS
+    # ============================================
+
+    spy_articles = collect_gdelt_news(
         ticker='SPY',
-        search_terms=[
-            'S&P 500 performance',
-            'stock market outlook',
+        keywords=[
+            'stock market',
+            'S&P 500',
+            'SPY ETF',
+            'stocks',
+            'Wall Street',
+            'Dow Jones',
             'market rally',
-            'stock market analysis'
-        ]
+            'stock prices',
+            'equity market',
+            'trading'
+        ],
+        max_articles=1000  # Collect up to 1000 articles
     )
 
-    # Save to CSV
+    # ============================================
+    # SAVE TO CSV
+    # ============================================
+
     if tan_articles is not None:
         tan_articles.to_csv('data/TAN_news.csv', index=False)
-        print(f"\nSaved: data/TAN_news.csv ({len(tan_articles)} articles)")
+        print(f"\n✅ Saved: data/TAN_news.csv ({len(tan_articles)} articles)")
 
     if spy_articles is not None:
         spy_articles.to_csv('data/SPY_news.csv', index=False)
-        print(f"Saved: data/SPY_news.csv ({len(spy_articles)} articles)")
+        print(f"✅ Saved: data/SPY_news.csv ({len(spy_articles)} articles)")
+
+    # ============================================
+    # SUMMARY
+    # ============================================
 
     print("\n" + "=" * 60)
-    print("✓ COLLECTION COMPLETE!")
+    print("✅ COLLECTION COMPLETE!")
     print("=" * 60)
+
+    if tan_articles is not None and spy_articles is not None:
+        print(f"\nCollected:")
+        print(f"  TAN: {len(tan_articles)} articles over {tan_articles['date'].nunique()} days")
+        print(f"  SPY: {len(spy_articles)} articles over {spy_articles['date'].nunique()} days")
+        print(f"\nPeriod: {START_DATE} to {END_DATE} (~{months:.1f} months)")
+        print(f"\nThis gives you {len(tan_articles) + len(spy_articles)} total articles for analysis!")
+
     print("\nNext step: Run 2_analyze_sentiment.py")
 
 
 if __name__ == "__main__":
-    # Create data folder if it doesn't exist
     import os
 
     os.makedirs('data', exist_ok=True)
 
-    # Run main function
+    # Run
     main()

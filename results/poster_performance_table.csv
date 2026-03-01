@@ -1,0 +1,7 @@
+Metric,TAN,SPY,Interpretation
+Volatility,34.4%,13.1%,TAN 2.6x higher
+Sent-Vol Correlation,0.179*,0.091,TAN stronger ✓
+GARCH Persistence,0.767,0.700,TAN higher
+Strategy Return,+3.97%,+6.11%,SPY better
+Sharpe Ratio,0.891,3.439,SPY better
+Max Drawdown,-13.62%,-2.89%,SPY better

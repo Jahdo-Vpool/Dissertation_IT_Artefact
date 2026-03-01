@@ -1,0 +1,4 @@
+Hypothesis,Status,Key_Evidence
+H1: Differential Impact,✓ SUPPORTED,Corr: 0.179 vs 0.091; 2.6x vol
+H2: Modeling Power,⚠️ WEAK,p=0.363; R²=0.046; slope=-6.39
+H3: Trading Performance,✓ SUPPORTED,Sharpe +0.481; Return +2.70%; DD +0.00%

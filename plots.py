@@ -1,13 +1,54 @@
 """
-Step 7: Create Essential Visualizations (Streamlined)
-Generate only the most important charts for dissertation
+================================================================================
+Script 7: Visualisation of Results (plots.py)
+================================================================================
+Purpose:
+    Generates six publication-quality figures that visually communicate the
+    findings of the sentiment-driven trading analysis. The charts are designed
+    to support the Results and Discussion chapters of the dissertation by
+    providing clear graphical evidence for each hypothesis test.
 
-What this does:
-- Creates 6 essential charts for dissertation
-- Focuses on TAN analysis + TAN vs SPY comparison
-- High-quality, publication-ready figures
+Academic Context:
+    Visualisation is a critical component of quantitative research. Raw
+    numerical outputs from performance metrics and correlation analyses are
+    difficult to interpret in isolation. These figures contextualise the
+    results by showing patterns across time, distributions of key variables,
+    and direct comparisons between the two ETFs. Each chart is mapped
+    explicitly to one or more dissertation hypotheses (H1, H2, H3) so that
+    figures can be referenced directly in the written analysis.
 
-Run: python 7_create_plots_essential.py
+Figures Produced and Their Dissertation Purpose:
+    1. TAN_cumulative_returns.png       - Tests H3 (strategy vs buy-and-hold)
+    2. TAN_sentiment_returns_scatter.png - Tests H1 and H2 (sentiment-return link)
+    3. TAN_trading_signals.png          - Illustrates the trading methodology
+    4. TAN_drawdown_comparison.png      - Risk analysis supporting H3
+    5. TAN_sentiment_distribution.png   - Data quality and sentiment overview
+    6. TAN_vs_SPY_comparison.png        - Tests H1 (differential sentiment effects)
+
+Inputs:
+    - results/TAN_trading_signals.csv
+    - results/SPY_trading_signals.csv
+    - results/TAN_merge_prices_news.csv
+    - results/SPY_merge_prices_news.csv
+    - results/performance_metrics_detailed.csv
+
+Outputs:
+    - plots/  (directory containing all six .png figures at 300 DPI)
+
+Pipeline Position:
+    Script 7 of 10. Runs after calculate_metrics.py. All input files must
+    exist before this script is executed.
+
+Dependencies:
+    - pandas     : Data loading and manipulation
+    - matplotlib : Core plotting library
+    - seaborn    : Style and colour palette management
+    - numpy      : Numerical operations (drawdown, trend lines)
+    - os         : Directory creation
+
+Usage:
+    python plots.py
+================================================================================
 """
 
 import pandas as pd
@@ -16,20 +57,46 @@ import seaborn as sns
 import numpy as np
 import os
 
-# Set style for professional-looking plots
+# ============================================
+# SECTION 1: GLOBAL STYLE CONFIGURATION
+# ============================================
+# A consistent visual style is applied across all figures to ensure the
+# dissertation charts appear cohesive and professional. The darkgrid style
+# provides clear gridlines against a neutral background, which aids
+# readability when figures are printed in greyscale as well as colour.
+# The 'husl' palette is perceptually uniform, meaning colour differences
+# are proportional across the spectrum — important for accessibility.
+
 plt.style.use('seaborn-v0_8-darkgrid')
 sns.set_palette("husl")
 
-# Ensure plots directory exists
-os.makedirs('plots_test', exist_ok=True)
+# Create the output directory if it does not already exist.
+# All figures are saved here for direct use in the dissertation.
+os.makedirs('plots', exist_ok=True)
 
 
 # ============================================
-# ESSENTIAL PLOTTING FUNCTIONS
+# SECTION 2: INDIVIDUAL PLOTTING FUNCTIONS
 # ============================================
 
 def plot_cumulative_returns(ticker):
-    """Plot cumulative returns: Strategy vs Buy-and-Hold."""
+    """
+    Generate a line chart comparing cumulative returns of the sentiment-based
+    trading strategy against a passive buy-and-hold benchmark.
+
+    Dissertation relevance:
+        This figure directly tests Hypothesis 3 (H3), which posits that a
+        sentiment-informed trading strategy outperforms a simple buy-and-hold
+        approach. The chart allows a visual assessment of whether the strategy
+        generates superior returns, and at what points in time it diverges
+        from or converges with the benchmark.
+
+    Parameters
+    ----------
+    ticker : str
+        ETF ticker symbol ('TAN' or 'SPY'). Determines which results file
+        is loaded and which filename is used for the saved figure.
+    """
 
     print(f"\n  Creating cumulative returns comparison for {ticker}...")
 
@@ -37,32 +104,51 @@ def plot_cumulative_returns(ticker):
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    # Plot both strategies
+    # Plot cumulative returns for both strategies.
+    # Values are multiplied by 100 to convert from decimal to percentage,
+    # which is the conventional format for return charts in finance.
     ax.plot(df.index, df['cumulative_return'] * 100,
             linewidth=2.5, label='Buy & Hold', color='tab:blue')
     ax.plot(df.index, df['cumulative_strategy'] * 100,
             linewidth=2.5, label='Sentiment Strategy', color='tab:green')
 
-    # Zero line
+    # A horizontal reference line at zero distinguishes periods of positive
+    # and negative cumulative return, aiding interpretation.
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
 
-    # Formatting
     ax.set_xlabel('Trading Days', fontsize=12)
     ax.set_ylabel('Cumulative Return (%)', fontsize=12)
     ax.set_title(f'{ticker}: Cumulative Returns Comparison', fontsize=14, fontweight='bold')
     ax.legend(loc='best', fontsize=11)
     ax.grid(True, alpha=0.3)
 
-    # Save
-    filename = f'plots_test/{ticker}_cumulative_returns.png'
+    filename = f'plots/{ticker}_cumulative_returns.png'
+    # dpi=300 ensures the figure meets the resolution requirements for
+    # academic publication and dissertation printing standards.
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 def plot_sentiment_distribution(ticker):
-    """Plot sentiment score distribution."""
+    """
+    Generate a two-panel figure showing the distribution of daily sentiment
+    scores and their breakdown by sentiment classification label.
+
+    Dissertation relevance:
+        This figure serves as a data quality check and provides descriptive
+        context for the sentiment corpus. It demonstrates that the VADER
+        scores are spread across the full range and that the classification
+        thresholds (buy at +0.05, sell at -0.05) are positioned meaningfully
+        relative to the observed distribution. This supports the methodology
+        discussion in the dissertation.
+
+    Parameters
+    ----------
+    ticker : str
+        ETF ticker symbol ('TAN' or 'SPY').
+    """
 
     print(f"\n  Creating sentiment distribution for {ticker}...")
 
@@ -70,7 +156,10 @@ def plot_sentiment_distribution(ticker):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Histogram
+    # --- Panel 1: Histogram of sentiment scores ---
+    # The histogram shows the full distribution of VADER compound scores.
+    # Vertical reference lines mark the neutral point (0.0) and the
+    # trading signal thresholds (+/- 0.05) used in Script 5.
     ax1.hist(df['sentiment_score'], bins=30, color='skyblue', edgecolor='black', alpha=0.7)
     ax1.axvline(x=0, color='red', linestyle='--', linewidth=2, label='Neutral')
     ax1.axvline(x=0.05, color='green', linestyle='--', linewidth=2, label='Buy Threshold')
@@ -81,7 +170,10 @@ def plot_sentiment_distribution(ticker):
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
-    # Box plot by label
+    # --- Panel 2: Box plot by classification label ---
+    # Grouping scores by their classification (negative, neutral, positive)
+    # verifies that the VADER labels are internally consistent — positive
+    # labels should correspond to higher scores than negative labels.
     sentiment_by_label = []
     labels = []
     for label in ['negative', 'neutral', 'positive']:
@@ -92,8 +184,9 @@ def plot_sentiment_distribution(ticker):
 
     if sentiment_by_label:
         bp = ax2.boxplot(sentiment_by_label, tick_labels=labels, patch_artist=True)
+        # Colour coding: red for negative, grey for neutral, green for positive.
+        # This convention is consistent with standard financial charting practice.
         colors = ['#ff9999', 'lightgray', '#90ee90']
-
         for patch, color in zip(bp['boxes'], colors[:len(bp['boxes'])]):
             patch.set_facecolor(color)
 
@@ -105,16 +198,31 @@ def plot_sentiment_distribution(ticker):
     plt.suptitle(f'{ticker}: Sentiment Analysis', fontsize=14, fontweight='bold', y=1.02)
     fig.tight_layout()
 
-    # Save
-    filename = f'plots_test/{ticker}_sentiment_distribution.png'
+    filename = f'plots/{ticker}_sentiment_distribution.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 def plot_trading_signals(ticker):
-    """Plot price with trading signals overlay."""
+    """
+    Plot ETF closing price as a time series with buy and sell signal markers
+    overlaid, and shaded regions indicating periods when the strategy holds
+    a long position.
+
+    Dissertation relevance:
+        This figure illustrates the trading strategy methodology, showing
+        how and when sentiment signals translate into market positions. It
+        is most appropriate for the Methodology chapter to demonstrate that
+        the signal generation logic produces a plausible and interpretable
+        pattern of trades rather than random noise.
+
+    Parameters
+    ----------
+    ticker : str
+        ETF ticker symbol ('TAN' or 'SPY').
+    """
 
     print(f"\n  Creating trading signals chart for {ticker}...")
 
@@ -122,64 +230,93 @@ def plot_trading_signals(ticker):
 
     fig, ax = plt.subplots(figsize=(14, 7))
 
-    # Plot price
-    ax.plot(df.index, df['close'], linewidth=2, label='Close Price', color='black', alpha=0.7)
+    # Plot the closing price series as the primary time series.
+    ax.plot(df.index, df['close'], linewidth=2, label='Close Price',
+            color='black', alpha=0.7)
 
-    # Mark buy signals
+    # Buy signals: upward-pointing triangles (conventional financial charting
+    # convention for long entry points).
     buys = df[df['signal'] == 'BUY']
     ax.scatter(buys.index, buys['close'], color='green', marker='^',
                s=100, label='BUY Signal', zorder=5, alpha=0.8)
 
-    # Mark sell signals
+    # Sell signals: downward-pointing triangles (conventional for exit points).
     sells = df[df['signal'] == 'SELL']
     ax.scatter(sells.index, sells['close'], color='red', marker='v',
                s=100, label='SELL Signal', zorder=5, alpha=0.8)
 
-    # Shade periods when in market
+    # Shaded regions highlight days when the strategy holds an active long
+    # position (position == 1), providing a clear visual of market exposure
+    # relative to the price series.
     in_market = df['position'] == 1
     ax.fill_between(df.index, df['close'].min() * 0.95, df['close'].max() * 1.05,
                     where=in_market, alpha=0.1, color='green', label='In Market')
 
-    # Formatting
     ax.set_xlabel('Trading Days', fontsize=12)
     ax.set_ylabel('Close Price ($)', fontsize=12)
     ax.set_title(f'{ticker}: Trading Signals Based on Sentiment', fontsize=14, fontweight='bold')
     ax.legend(loc='best', fontsize=11)
     ax.grid(True, alpha=0.3)
 
-    # Save
-    filename = f'plots_test/{ticker}_trading_signals.png'
+    filename = f'plots/{ticker}_trading_signals.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 def plot_drawdown_comparison(ticker):
-    """Plot drawdown comparison."""
+    """
+    Plot the drawdown profile of both the sentiment strategy and the
+    buy-and-hold benchmark over the full analysis period.
+
+    Dissertation relevance:
+        Drawdown measures the peak-to-trough decline in portfolio value and
+        is one of the most important risk metrics in quantitative finance.
+        This figure supports Hypothesis 3 (H3) by showing whether the
+        sentiment strategy achieves a shallower drawdown than buy-and-hold,
+        which would indicate superior downside risk management even if
+        absolute returns are comparable.
+
+    Parameters
+    ----------
+    ticker : str
+        ETF ticker symbol ('TAN' or 'SPY').
+    """
 
     print(f"\n  Creating drawdown comparison for {ticker}...")
 
     df = pd.read_csv(f'results/{ticker}_trading_signals.csv')
 
-    # Calculate drawdowns
     def calculate_drawdown(cumulative_returns):
+        """
+        Compute the percentage drawdown at each point in time relative to
+        the highest cumulative return achieved up to that point.
+
+        The running maximum captures the portfolio's historical peak value.
+        Dividing the difference between current value and peak by the peak
+        produces a normalised drawdown measure that is comparable across
+        different asset classes and time periods.
+        """
         running_max = np.maximum.accumulate(cumulative_returns)
         drawdown = (cumulative_returns - running_max) / (running_max + 1)
-        return drawdown * 100
+        return drawdown * 100  # Convert to percentage
 
     buy_hold_dd = calculate_drawdown(df['cumulative_return'].values)
     strategy_dd = calculate_drawdown(df['cumulative_strategy'].values)
 
     fig, ax = plt.subplots(figsize=(12, 6))
 
-    # Plot drawdowns
-    ax.fill_between(df.index, 0, buy_hold_dd, alpha=0.3, color='tab:blue', label='Buy & Hold')
-    ax.fill_between(df.index, 0, strategy_dd, alpha=0.3, color='tab:green', label='Strategy')
+    # Filled area charts emphasise the magnitude of drawdown periods more
+    # effectively than line charts alone, making peak drawdown events
+    # immediately apparent to the reader.
+    ax.fill_between(df.index, 0, buy_hold_dd, alpha=0.3,
+                    color='tab:blue', label='Buy & Hold')
+    ax.fill_between(df.index, 0, strategy_dd, alpha=0.3,
+                    color='tab:green', label='Strategy')
     ax.plot(df.index, buy_hold_dd, linewidth=1.5, color='tab:blue')
     ax.plot(df.index, strategy_dd, linewidth=1.5, color='tab:green')
 
-    # Formatting
     ax.set_xlabel('Trading Days', fontsize=12)
     ax.set_ylabel('Drawdown (%)', fontsize=12)
     ax.set_title(f'{ticker}: Drawdown Comparison', fontsize=14, fontweight='bold')
@@ -187,58 +324,86 @@ def plot_drawdown_comparison(ticker):
     ax.grid(True, alpha=0.3)
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
 
-    # Annotate max drawdowns
+    # Annotate the maximum drawdown values directly on the chart so the
+    # key risk figures are visible without requiring the reader to consult
+    # a separate table.
     max_bh_dd = buy_hold_dd.min()
     max_st_dd = strategy_dd.min()
-    ax.text(0.02, 0.98, f'Buy & Hold Max DD: {max_bh_dd:.2f}%\nStrategy Max DD: {max_st_dd:.2f}%',
+    ax.text(0.02, 0.98,
+            f'Buy & Hold Max DD: {max_bh_dd:.2f}%\nStrategy Max DD: {max_st_dd:.2f}%',
             transform=ax.transAxes, fontsize=10, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
-    # Save
-    filename = f'plots_test/{ticker}_drawdown_comparison.png'
+    filename = f'plots/{ticker}_drawdown_comparison.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 def plot_sentiment_returns_scatter(ticker):
-    """Scatter plot: Sentiment vs next-day returns."""
+    """
+    Generate a scatter plot of daily sentiment scores against the following
+    day's ETF return, with a linear trend line and Pearson correlation
+    coefficient displayed.
+
+    Dissertation relevance:
+        This figure provides visual evidence for Hypotheses 1 and 2 (H1, H2).
+        A positive slope and statistically meaningful correlation would suggest
+        that higher sentiment scores are associated with higher next-day returns,
+        supporting the notion that sentiment contains predictive information
+        about short-term price movements. The one-day lag (using today's
+        sentiment to predict tomorrow's return) is a standard approach in
+        financial sentiment research that avoids look-ahead bias.
+
+    Parameters
+    ----------
+    ticker : str
+        ETF ticker symbol ('TAN' or 'SPY').
+    """
 
     print(f"\n  Creating sentiment-returns correlation for {ticker}...")
 
     df = pd.read_csv(f'results/{ticker}_merge_prices_news.csv')
 
-    # Shift returns to align with previous day's sentiment
+    # Shift returns forward by one day so that each sentiment score is
+    # aligned with the return it is hypothesised to predict, not the return
+    # from the same day (which would introduce look-ahead bias).
     df['next_return'] = df['return'].shift(-1)
-
-    # Remove last row (no next return)
-    df = df[:-1]
+    df = df[:-1]  # Remove the final row, which has no next-day return
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    # Scatter plot
+    # Colour the scatter points by sentiment score using a red-yellow-green
+    # diverging palette, which reinforces the negative/neutral/positive
+    # classification visually.
     scatter = ax.scatter(df['sentiment_score'], df['next_return'],
                          alpha=0.6, s=50, c=df['sentiment_score'],
                          cmap='RdYlGn', edgecolors='black', linewidth=0.5)
 
-    # Trend line
+    # Fit a first-degree polynomial (linear trend line) to the data.
+    # The slope of this line indicates the direction and magnitude of the
+    # relationship between sentiment and next-day returns.
     z = np.polyfit(df['sentiment_score'], df['next_return'], 1)
     p = np.poly1d(z)
     ax.plot(df['sentiment_score'], p(df['sentiment_score']),
-            "r--", alpha=0.8, linewidth=2, label=f'Trend: y={z[0]:.2f}x+{z[1]:.2f}')
+            "r--", alpha=0.8, linewidth=2,
+            label=f'Trend: y={z[0]:.2f}x+{z[1]:.2f}')
 
-    # Zero lines
+    # Reference lines at zero for both axes divide the plot into four
+    # quadrants: high sentiment/positive return, high sentiment/negative return,
+    # low sentiment/positive return, and low sentiment/negative return.
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
     ax.axvline(x=0, color='black', linestyle='-', alpha=0.3)
 
-    # Correlation
+    # Display the Pearson correlation coefficient directly on the chart.
+    # This is the same statistic reported in the hypothesis testing results,
+    # providing a direct link between the figure and the statistical analysis.
     corr = df['sentiment_score'].corr(df['next_return'])
     ax.text(0.05, 0.95, f'Correlation: {corr:.3f}',
             transform=ax.transAxes, fontsize=12, verticalalignment='top',
             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.7))
 
-    # Formatting
     ax.set_xlabel('Sentiment Score (Today)', fontsize=12)
     ax.set_ylabel('Return (Next Day) %', fontsize=12)
     ax.set_title(f'{ticker}: Sentiment vs Next-Day Returns', fontsize=14, fontweight='bold')
@@ -246,16 +411,27 @@ def plot_sentiment_returns_scatter(ticker):
     ax.grid(True, alpha=0.3)
     plt.colorbar(scatter, ax=ax, label='Sentiment Score')
 
-    # Save
-    filename = f'plots_test/{ticker}_sentiment_returns_scatter.png'
+    filename = f'plots/{ticker}_sentiment_returns_scatter.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 def create_comparison_dashboard():
-    """Create side-by-side comparison: TAN vs SPY."""
+    """
+    Generate a four-panel dashboard providing a side-by-side comparison
+    of TAN and SPY across strategy performance, rolling volatility,
+    sentiment scores, and key performance metrics.
+
+    Dissertation relevance:
+        This is the primary visual for testing Hypothesis 1 (H1), which
+        proposes that news sentiment has a stronger and more direct effect on
+        the sector-specific TAN ETF than on the diversified SPY ETF. Placing
+        both ETFs side-by-side across multiple dimensions allows the reader
+        to assess whether TAN consistently exhibits stronger sentiment-driven
+        behaviour without needing to cross-reference separate figures.
+    """
 
     print(f"\n  Creating TAN vs SPY comparison dashboard...")
 
@@ -264,7 +440,10 @@ def create_comparison_dashboard():
 
     fig, axes = plt.subplots(2, 2, figsize=(16, 10))
 
-    # Plot 1: Cumulative returns comparison
+    # --- Panel 1: Cumulative strategy returns ---
+    # Compares the total return generated by the sentiment strategy for each
+    # ETF over the full analysis period. Divergence between the two lines
+    # indicates differential performance attributable to the strategy.
     ax = axes[0, 0]
     ax.plot(tan_df.index, tan_df['cumulative_strategy'] * 100,
             linewidth=2, label='TAN Strategy', color='tab:orange')
@@ -277,7 +456,11 @@ def create_comparison_dashboard():
     ax.grid(True, alpha=0.3)
     ax.axhline(y=0, color='black', linestyle='-', alpha=0.3)
 
-    # Plot 2: Volatility comparison (rolling)
+    # --- Panel 2: Rolling volatility ---
+    # A 10-day rolling standard deviation of daily returns is used as a
+    # simple measure of short-term price volatility. TAN is expected to show
+    # higher and more variable volatility than SPY due to its sector
+    # concentration, which is central to the H1 argument.
     ax = axes[0, 1]
     tan_vol = tan_df['return'].rolling(window=10).std()
     spy_vol = spy_df['return'].rolling(window=10).std()
@@ -289,7 +472,11 @@ def create_comparison_dashboard():
     ax.legend()
     ax.grid(True, alpha=0.3)
 
-    # Plot 3: Sentiment comparison
+    # --- Panel 3: Sentiment score comparison ---
+    # Overlaying TAN and SPY sentiment scores shows whether the two series
+    # move together (correlated market-wide sentiment) or independently
+    # (sector-specific sentiment dynamics). Greater independence in TAN's
+    # sentiment would support the H1 hypothesis.
     ax = axes[1, 0]
     tan_sentiment = pd.read_csv('results/TAN_merge_prices_news.csv')
     spy_sentiment = pd.read_csv('results/SPY_merge_prices_news.csv')
@@ -304,17 +491,20 @@ def create_comparison_dashboard():
     ax.grid(True, alpha=0.3)
     ax.axhline(y=0, color='black', linestyle='--', alpha=0.3)
 
-    # Plot 4: Performance metrics bar chart
+    # --- Panel 4: Key performance metrics bar chart ---
+    # A grouped bar chart summarising four headline metrics enables rapid
+    # comparison without requiring the reader to search through result tables.
+    # Sharpe ratio is scaled by a factor of 10 solely for visual legibility
+    # alongside percentage-scale metrics; this is noted in the chart title.
     ax = axes[1, 1]
     metrics_df = pd.read_csv('results/performance_metrics_detailed.csv')
-
     tan_metrics = metrics_df[metrics_df['ticker'] == 'TAN'].iloc[0]
     spy_metrics = metrics_df[metrics_df['ticker'] == 'SPY'].iloc[0]
 
-    categories = ['Return\n(%)', 'Sharpe\nRatio', 'Max DD\n(%)', 'Win Rate\n(%)']
+    categories = ['Return\n(%)', 'Sharpe\n(x10)', 'Max DD\n(%)', 'Win Rate\n(%)']
     tan_values = [
         tan_metrics['strategy_total_return'],
-        tan_metrics['strategy_sharpe'] * 10,  # Scale for visibility
+        tan_metrics['strategy_sharpe'] * 10,
         abs(tan_metrics['strategy_max_drawdown']),
         tan_metrics['win_rate']
     ]
@@ -327,7 +517,6 @@ def create_comparison_dashboard():
 
     x = np.arange(len(categories))
     width = 0.35
-
     ax.bar(x - width / 2, tan_values, width, label='TAN', color='tab:orange', alpha=0.8)
     ax.bar(x + width / 2, spy_values, width, label='SPY', color='tab:blue', alpha=0.8)
     ax.set_title('Key Performance Metrics', fontsize=12, fontweight='bold')
@@ -336,86 +525,98 @@ def create_comparison_dashboard():
     ax.legend()
     ax.grid(True, alpha=0.3, axis='y')
 
-    plt.suptitle('TAN vs SPY: Comprehensive Comparison', fontsize=16, fontweight='bold', y=0.995)
+    plt.suptitle('TAN vs SPY: Comprehensive Comparison', fontsize=16,
+                 fontweight='bold', y=0.995)
     fig.tight_layout()
 
-    # Save
-    filename = 'plots_test/TAN_vs_SPY_comparison.png'
+    filename = 'plots/TAN_vs_SPY_comparison.png'
     plt.savefig(filename, dpi=300, bbox_inches='tight')
     plt.close()
 
-    print(f"    ✅ Saved: {filename}")
+    print(f"    Saved: {filename}")
 
 
 # ============================================
-# MAIN FUNCTION
+# SECTION 3: MAIN EXECUTION
 # ============================================
 
 def main():
-    """Generate essential visualizations only."""
+    """
+    Execute all six visualisation functions in sequence.
+
+    The charts are ordered so that TAN-specific figures are produced first,
+    followed by the comparative TAN vs SPY dashboard. This order mirrors the
+    structure of the Results chapter, where TAN analysis is presented in
+    detail before the cross-ETF comparison is introduced.
+    """
 
     print("\n" + "=" * 60)
-    print("CREATING ESSENTIAL VISUALIZATIONS")
+    print("CREATING DISSERTATION VISUALISATIONS")
     print("=" * 60)
-    print("\nGenerating 6 key charts for dissertation...")
-    print("(Streamlined - focusing on most important figures)")
 
-    # Generate essential charts for TAN
-    print("\n📊 TAN Charts (Essential):")
-    print("  Chart 1/5: Cumulative Returns (H3 - Strategy Performance)")
+    # --- TAN-specific charts ---
+    print("\nTAN Charts:")
+
+    # Chart 1: Tests H3 — does the strategy outperform buy-and-hold?
+    print("  Chart 1/6: Cumulative Returns (H3 - Strategy Performance)")
     plot_cumulative_returns('TAN')
 
-    print("  Chart 2/5: Sentiment-Returns Correlation (H1, H2 - Statistical Relationship)")
+    # Chart 2: Tests H1 and H2 — does sentiment predict next-day returns?
+    print("  Chart 2/6: Sentiment-Returns Scatter (H1, H2 - Predictive Relationship)")
     plot_sentiment_returns_scatter('TAN')
 
-    print("  Chart 3/5: Trading Signals (Methodology Explanation)")
+    # Chart 3: Methodology illustration — how signals are generated and applied
+    print("  Chart 3/6: Trading Signals (Methodology)")
     plot_trading_signals('TAN')
 
-    print("  Chart 4/5: Drawdown Comparison (Risk Analysis)")
+    # Chart 4: Tests H3 risk dimension — does the strategy reduce drawdown?
+    print("  Chart 4/6: Drawdown Comparison (H3 - Risk Analysis)")
     plot_drawdown_comparison('TAN')
 
-    print("  Chart 5/5: Sentiment Distribution (Data Quality)")
+    # Chart 5: Data quality — distribution of the sentiment input variable
+    print("  Chart 5/6: Sentiment Distribution (Data Quality)")
     plot_sentiment_distribution('TAN')
 
-    # Comparison dashboard
-    print("\n📊 Comparative Analysis:")
+    # --- Comparative dashboard ---
+    # Chart 6: Tests H1 — are sentiment effects stronger for TAN than SPY?
+    print("\nComparative Analysis:")
     print("  Chart 6/6: TAN vs SPY Dashboard (H1 - Differential Effects)")
     create_comparison_dashboard()
 
-    # Summary
-    print("\n" + "=" * 60)
-    print("✅ ESSENTIAL VISUALIZATIONS CREATED!")
-    print("=" * 60)
-
-    print("\n📁 Location: plots/")
-    print("\n✅ Charts created (6 essential figures):")
-    print("\n  For TAN Analysis:")
-    print("    1. TAN_cumulative_returns.png         → H3 Testing")
-    print("    2. TAN_sentiment_returns_scatter.png  → H1, H2 Testing")
-    print("    3. TAN_trading_signals.png            → Methodology")
-    print("    4. TAN_drawdown_comparison.png        → Risk Analysis")
-    print("    5. TAN_sentiment_distribution.png     → Data Quality")
-    print("\n  For Comparative Analysis:")
-    print("    6. TAN_vs_SPY_comparison.png          → H1 Testing")
+    # -----------------------------------------------------------------------
+    # SUMMARY AND DISSERTATION USAGE GUIDE
+    # -----------------------------------------------------------------------
 
     print("\n" + "=" * 60)
-    print("📊 DISSERTATION USAGE GUIDE")
-    print("=" * 60)
-    print("\nChapter 3 (Methodology):")
-    print("  → TAN_trading_signals.png")
-    print("  → TAN_sentiment_distribution.png (optional)")
-    print("\nChapter 4 (Results):")
-    print("  → TAN_cumulative_returns.png")
-    print("  → TAN_sentiment_returns_scatter.png")
-    print("  → TAN_drawdown_comparison.png")
-    print("  → TAN_vs_SPY_comparison.png")
-
-    print("\n✅ All charts are high-resolution (300 DPI)")
-    print("✅ Ready for direct insertion into dissertation")
-    print("\n" + "=" * 60)
-    print("Next step: Run 9_calculate_volatility.py (GARCH)")
+    print("VISUALISATIONS COMPLETE")
     print("=" * 60)
 
+    print("\nOutput location: plots/")
+    print("\nFigures produced:")
+    print("  1. TAN_cumulative_returns.png         — H3 Testing")
+    print("  2. TAN_sentiment_returns_scatter.png  — H1, H2 Testing")
+    print("  3. TAN_trading_signals.png            — Methodology")
+    print("  4. TAN_drawdown_comparison.png        — Risk Analysis")
+    print("  5. TAN_sentiment_distribution.png     — Data Quality")
+    print("  6. TAN_vs_SPY_comparison.png          — H1 Testing")
+
+    print("\nDissertation chapter usage:")
+    print("  Chapter 3 (Methodology):")
+    print("    - TAN_trading_signals.png")
+    print("    - TAN_sentiment_distribution.png")
+    print("  Chapter 4 (Results):")
+    print("    - TAN_cumulative_returns.png")
+    print("    - TAN_sentiment_returns_scatter.png")
+    print("    - TAN_drawdown_comparison.png")
+    print("    - TAN_vs_SPY_comparison.png")
+
+    print("\nAll figures saved at 300 DPI — ready for dissertation insertion.")
+    print("\nNext step: Run volitility_calculation.py")
+
+
+# ============================================
+# SECTION 4: ENTRY POINT
+# ============================================
 
 if __name__ == "__main__":
     main()

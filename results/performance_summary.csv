@@ -1,0 +1,11 @@
+Metric,TAN Strategy,TAN Buy & Hold,SPY Strategy,SPY Buy & Hold
+Total Return (%),9.34,9.13,1.51,0.60
+Annualised Return (%),93.88,91.05,10.19,3.92
+Volatility (%),38.47,38.49,11.62,11.76
+Max Drawdown (%),-9.14,-9.14,-2.53,-2.57
+Sharpe Ratio,1.939,1.899,0.904,0.389
+Sortino Ratio,3.163,3.073,1.136,0.524
+Calmar Ratio,7.580,7.404,3.866,1.501
+Time in Market (%),97.1,100.0,89.7,100.0
+Win Rate (%),54.5,-,54.3,-
+Number of Trades,1,0,7,0

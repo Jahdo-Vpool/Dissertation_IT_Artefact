@@ -37,8 +37,8 @@ Outputs:
 
 Pipeline Position:
     Script 6 of 10. Depends on Script 5 (trading_signals.py).
-    Output feeds into Script 7 (charts.py) for visualisation and
-    Script 11 (hypothesis_results.py) for formal hypothesis reporting.
+    Output feeds into Script 7 (plots.py) for visualisation and
+    Script 10 (hypothesis_results.py) for formal hypothesis reporting.
 
 Dependencies:
     - pandas : Data loading and DataFrame construction
@@ -578,7 +578,7 @@ def main():
         print(f"  This warrants further discussion in relation to H1.")
 
     print("\n" + "=" * 60)
-    print("Next step: Run charts.py")
+    print("Next step: Run plots.py")
     print("=" * 60)
 
 

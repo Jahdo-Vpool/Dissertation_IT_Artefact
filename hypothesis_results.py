@@ -35,7 +35,7 @@ Inputs:
     - results/correlation_summary.csv         : From Script 9
     - results/volatility_comparison.csv       : From Script 8
     - results/performance_metrics_detailed.csv: From Script 6
-    - results/regression_summary.csv          : From Script 10
+    - results/regression_summary.csv          : From Script 9
 
 Outputs:
     - results/hypothesis_testing_summary.csv  : Structured hypothesis outcomes
@@ -88,13 +88,13 @@ def extract_hypothesis_results():
     # All four are required; if any is missing, the function exits early
     # with an informative error message rather than producing partial output.
     try:
-        corr = pd.read_csv('results/correlation_summary.csv')       # From Script 10
-        vol  = pd.read_csv('results/volatility_comparison.csv')      # From Script 9
-        perf = pd.read_csv('results/performance_metrics_detailed.csv') # From Script 6
-        reg  = pd.read_csv('results/regression_summary.csv')         # From Script 10
+        corr = pd.read_csv('results/correlation_summary.csv')          # From Script 9
+        vol  = pd.read_csv('results/volatility_comparison.csv')         # From Script 8
+        perf = pd.read_csv('results/performance_metrics_detailed.csv')  # From Script 6
+        reg  = pd.read_csv('results/regression_summary.csv')            # From Script 9
     except FileNotFoundError as e:
         print(f"\nError: Missing file - {e}")
-        print("\nEnsure Scripts 6, 9, and 10 have been run before this script.")
+        print("\nEnsure Scripts 6, 8, and 9 have been run before this script.")
         return None
 
     # Filter each DataFrame to isolate the TAN and SPY rows.
@@ -248,18 +248,18 @@ def extract_hypothesis_results():
     print("H3: SENTIMENT-BASED TRADING PERFORMANCE")
     print("=" * 60)
 
-    sharpe_improvement  = tan_perf['sharpe_improvement']
-    return_difference   = tan_perf['outperformance']
+    sharpe_improvement   = tan_perf['sharpe_improvement']
+    return_difference    = tan_perf['outperformance']
     drawdown_improvement = tan_perf['drawdown_improvement']
-    strategy_sharpe     = tan_perf['strategy_sharpe']
-    buyhold_sharpe      = tan_perf['buy_hold_sharpe']
+    strategy_sharpe      = tan_perf['strategy_sharpe']
+    buyhold_sharpe       = tan_perf['buy_hold_sharpe']
 
     better_sharpe  = sharpe_improvement > 0
     better_returns = return_difference > 0
 
     # Three-way classification for H3:
-    # Supported — better Sharpe AND better absolute returns
-    # Mixed     — better Sharpe but lower absolute returns
+    # Supported     — better Sharpe AND better absolute returns
+    # Mixed         — better Sharpe but lower absolute returns
     # Not Supported — worse Sharpe ratio
     if better_sharpe and better_returns:
         h3_status = "SUPPORTED"
@@ -270,9 +270,9 @@ def extract_hypothesis_results():
 
     print(f"\nStatus: {h3_status}")
     print(f"\nEvidence:")
-    print(f"  Sharpe improvement: {sharpe_improvement:+.3f}")
+    print(f"  Sharpe improvement:   {sharpe_improvement:+.3f}")
     print(f"    (Strategy: {strategy_sharpe:.3f} vs Buy-Hold: {buyhold_sharpe:.3f})")
-    print(f"  Return difference:  {return_difference:+.2f}%")
+    print(f"  Return difference:    {return_difference:+.2f}%")
     print(f"  Drawdown improvement: {drawdown_improvement:+.2f}%")
 
     print(f"\nInterpretation:")
@@ -308,9 +308,9 @@ def extract_hypothesis_results():
     # SECTION 6: POSTER-READY FORMATTED OUTPUT
     # ============================================
     # The boxed text below is formatted to be copied directly into the
-    # academic poster (Script 12). Each box corresponds to one hypothesis
-    # and contains the status label, interpretive statement, and
-    # key numerical evidence with significance indicators.
+    # academic poster. Each box corresponds to one hypothesis and contains
+    # the status label, interpretive statement, and key numerical evidence
+    # with significance indicators.
 
     print("\n" + "=" * 60)
     print("READY-TO-COPY POSTER TEXT")
@@ -361,8 +361,8 @@ def extract_hypothesis_results():
     # SECTION 7: SAVE SUMMARY TO CSV
     # ============================================
     # The hypothesis outcomes are saved as a structured CSV so they can be
-    # referenced programmatically in Script 12 (create_poster_table.py)
-    # without needing to re-run the full extraction logic.
+    # referenced programmatically and included in the dissertation appendix
+    # as a machine-readable record of the hypothesis evaluation process.
 
     hypothesis_summary = pd.DataFrame({
         'Hypothesis': [

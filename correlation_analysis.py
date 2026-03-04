@@ -1,6 +1,6 @@
 """
 ================================================================================
-Script 9: Sentiment-Volatility Correlation Analysis
+Script 9: Sentiment-Volatility Correlation Analysis (correlation_analysis.py)
 ================================================================================
 Purpose:
     Performs comprehensive statistical analysis to evaluate the relationship
@@ -23,11 +23,10 @@ Academic Context:
         H3: Sentiment-informed trading signals can outperform a passive
             buy-and-hold strategy on a risk-adjusted basis.
 
-    Four analytical approaches are applied: Pearson correlation (parametric,
-    assumes normality), Spearman rank correlation (non-parametric, robust to
-    outliers), lead-lag analysis (tests whether sentiment predicts future
-    returns), and OLS regression (quantifies the magnitude of sentiment's
-    effect on returns and provides R-squared as an explanatory power metric).
+    Four analytical approaches are applied: Pearson correlation (parametric),
+    Spearman rank correlation (non-parametric), lead-lag analysis (tests
+    whether sentiment predicts future returns), and OLS regression (quantifies
+    the magnitude of sentiment’s effect on returns).
 
 Inputs:
     - results/TAN_merge_prices_news.csv  : Merged TAN sentiment and price data
@@ -57,11 +56,69 @@ Usage:
 
 import pandas as pd
 import numpy as np
-from scipy import stats
-from scipy.stats import pearsonr, spearmanr
+from scipy.stats import pearsonr, spearmanr, linregress
 import warnings
 
 warnings.filterwarnings('ignore')
+
+
+# ============================================
+# SECTION 0: SMALL UTILITIES
+# ============================================
+
+def sig_star(p):
+    """
+    Convert a p-value into the standard academic significance annotation.
+
+    Returns:
+        '***' if p < 0.01
+        '**'  if p < 0.05
+        '*'   if p < 0.10
+        'ns'  otherwise
+    """
+    if pd.isna(p):
+        return 'ns'
+    if p < 0.01:
+        return '***'
+    if p < 0.05:
+        return '**'
+    if p < 0.10:
+        return '*'
+    return 'ns'
+
+
+def safe_corr(x, y, method='pearson'):
+    """
+    Compute correlation and p-value safely, returning (np.nan, np.nan) if
+    insufficient data exists.
+
+    Parameters
+    ----------
+    x, y : array-like
+        Input series.
+    method : str
+        'pearson' or 'spearman'
+
+    Returns
+    -------
+    tuple : (corr, p_value)
+    """
+    x = pd.Series(x).astype(float)
+    y = pd.Series(y).astype(float)
+
+    valid = x.notna() & y.notna()
+    x = x[valid]
+    y = y[valid]
+
+    if len(x) < 3:
+        return np.nan, np.nan
+
+    if method == 'pearson':
+        return pearsonr(x, y)
+    elif method == 'spearman':
+        return spearmanr(x, y)
+    else:
+        raise ValueError("method must be 'pearson' or 'spearman'")
 
 
 # ============================================
@@ -75,197 +132,173 @@ def calculate_correlations(df, ticker):
     (lead-lag), realised volatility, and absolute returns as a volatility
     proxy.
 
-    Two correlation methods are used deliberately:
-    - Pearson: Assumes a linear relationship and normally distributed
-      variables. Standard in financial econometrics and directly comparable
-      across ETFs.
-    - Spearman: Rank-based and makes no distributional assumptions. Used as
-      a robustness check given that financial returns are known to exhibit
-      fat tails and non-normality (Cont, 2001).
+    Pearson is the primary test used for comparability across ETFs.
+    Spearman is included as a robustness check given non-normal return
+    distributions (fat tails).
 
     Parameters
     ----------
     df : pandas.DataFrame
-        Merged dataset containing at minimum: sentiment_score, return,
-        and date columns.
+        Merged dataset containing at minimum: sentiment_score, return, date.
     ticker : str
-        ETF identifier ('TAN' or 'SPY'). Used for labelling output.
+        ETF identifier ('TAN' or 'SPY').
 
     Returns
     -------
     dict
-        Dictionary of correlation coefficients and p-values for all
-        variable pairs tested.
+        Dictionary of correlation coefficients and p-values.
     """
 
     print(f"\n{'=' * 60}")
     print(f"{ticker} - CORRELATION ANALYSIS")
     print(f"{'=' * 60}")
 
-    # Drop rows with missing values. NaN values can arise from the rolling
-    # window calculations in Script 9 (first N rows have no volatility
-    # estimate) and from days where no news articles were collected.
-    df_clean = df.dropna()
+    # Keep only what we need for the core tests to avoid dropping rows
+    # due to unrelated missing values (e.g., volume, article_count).
+    df_clean = df.dropna(subset=['sentiment_score', 'return']).copy()
     print(f"  Analyzing {len(df_clean)} complete observations")
 
     # -----------------------------------------------------------------------
     # 1A. SENTIMENT-RETURN CORRELATIONS (SAME DAY)
-    # Tests whether sentiment on a given day is associated with the return
-    # on that same day. A positive correlation would suggest that more
-    # positive news coverage coincides with price appreciation, consistent
-    # with the efficient market hypothesis in its semi-strong form.
     # -----------------------------------------------------------------------
 
     print(f"\n  Sentiment-Return Relationships:")
 
-    corr_same_day, p_same_day = pearsonr(
+    corr_same_day, p_same_day = safe_corr(
         df_clean['sentiment_score'],
-        df_clean['return']
+        df_clean['return'],
+        method='pearson'
     )
     print(f"    Sentiment vs Same-day return:")
     print(f"      Correlation: {corr_same_day:+.3f}")
-    print(f"      P-value:     {p_same_day:.4f} "
-          f"{'***' if p_same_day < 0.01 else '**' if p_same_day < 0.05 else '*' if p_same_day < 0.1 else 'ns'}")
+    print(f"      P-value:     {p_same_day:.4f} {sig_star(p_same_day)}")
 
     # -----------------------------------------------------------------------
     # 1B. LEAD-LAG ANALYSIS (SENTIMENT TODAY vs RETURN TOMORROW)
-    # Shifts the return series forward by one day to test whether today's
-    # sentiment score has predictive power for tomorrow's return. This is
-    # the most practically relevant test for H3, as a trading strategy must
-    # act on current signals to generate future returns.
     # -----------------------------------------------------------------------
 
-    if 'next_return' not in df_clean.columns:
-        df_clean['next_return'] = df_clean['return'].shift(-1)
+    df_clean['next_return'] = df_clean['return'].shift(-1)
+    df_lead = df_clean.dropna(subset=['sentiment_score', 'next_return']).copy()
 
-    df_lead = df_clean.dropna()
-    if len(df_lead) > 2:
-        corr_next_day, p_next_day = pearsonr(
-            df_lead['sentiment_score'],
-            df_lead['next_return']
-        )
-        print(f"    Sentiment vs Next-day return (lead-lag):")
-        print(f"      Correlation: {corr_next_day:+.3f}")
-        print(f"      P-value:     {p_next_day:.4f} "
-              f"{'***' if p_next_day < 0.01 else '**' if p_next_day < 0.05 else '*' if p_next_day < 0.1 else 'ns'}")
-    else:
-        corr_next_day, p_next_day = np.nan, np.nan
+    corr_next_day, p_next_day = safe_corr(
+        df_lead['sentiment_score'],
+        df_lead['next_return'],
+        method='pearson'
+    )
+
+    print(f"    Sentiment vs Next-day return (lead-lag):")
+    print(f"      Correlation: {corr_next_day:+.3f}")
+    print(f"      P-value:     {p_next_day:.4f} {sig_star(p_next_day)}")
 
     # -----------------------------------------------------------------------
     # 1C. SENTIMENT-VOLATILITY CORRELATIONS
-    # Merges realised volatility estimates from Script 8 and tests whether
-    # sentiment is associated with the level of price variability. This
-    # addresses H2 directly. The absolute sentiment score is also tested
-    # to capture the hypothesis that extreme sentiment in either direction
-    # (strongly positive or strongly negative) coincides with higher
-    # volatility, regardless of sentiment direction.
     # -----------------------------------------------------------------------
 
     print(f"\n  Sentiment-Volatility Relationships:")
 
+    corr_vol, p_vol = np.nan, np.nan
+    corr_ext_vol, p_ext_vol = np.nan, np.nan
+
     try:
         vol_df = pd.read_csv(f'results/{ticker}_volatility_analysis.csv')
+
+        # Defensive: avoid accidental duplication from repeated dates.
+        vol_df = vol_df.drop_duplicates(subset=['date'])
+
+        # Bring realised and GARCH vol onto the merged dataset by date.
         merged = df_clean.merge(
             vol_df[['date', 'volatility_10d', 'garch_volatility']],
             on='date',
             how='left'
         )
-        merged = merged.dropna()
 
-        if len(merged) > 2:
-            # Directional sentiment vs realised volatility
-            corr_vol, p_vol = pearsonr(
-                merged['sentiment_score'],
-                merged['volatility_10d']
-            )
-            print(f"    Sentiment vs Realised volatility:")
-            print(f"      Correlation: {corr_vol:+.3f}")
-            print(f"      P-value:     {p_vol:.4f} "
-                  f"{'***' if p_vol < 0.01 else '**' if p_vol < 0.05 else '*' if p_vol < 0.1 else 'ns'}")
+        # Realised vol requires the rolling window to be filled → NaNs exist
+        merged = merged.dropna(subset=['sentiment_score', 'volatility_10d']).copy()
 
-            # Sentiment extremity (absolute value) vs realised volatility.
-            # A negative directional correlation but a positive extremity
-            # correlation would suggest that uncertainty (not just negative
-            # sentiment) drives volatility — a nuanced finding worth discussing.
-            merged['sentiment_abs'] = merged['sentiment_score'].abs()
-            corr_ext_vol, p_ext_vol = pearsonr(
-                merged['sentiment_abs'],
-                merged['volatility_10d']
-            )
-            print(f"    |Sentiment| vs Volatility (extremity test):")
-            print(f"      Correlation: {corr_ext_vol:+.3f}")
-            print(f"      P-value:     {p_ext_vol:.4f} "
-                  f"{'***' if p_ext_vol < 0.01 else '**' if p_ext_vol < 0.05 else '*' if p_ext_vol < 0.1 else 'ns'}")
-        else:
-            corr_vol, p_vol = np.nan, np.nan
-            corr_ext_vol, p_ext_vol = np.nan, np.nan
+        corr_vol, p_vol = safe_corr(
+            merged['sentiment_score'],
+            merged['volatility_10d'],
+            method='pearson'
+        )
+        print(f"    Sentiment vs Realised volatility (10d):")
+        print(f"      Correlation: {corr_vol:+.3f}")
+        print(f"      P-value:     {p_vol:.4f} {sig_star(p_vol)}")
 
-    except Exception:
-        # Volatility file may not exist if Script 9 was not run.
-        # The script continues with NaN placeholders rather than aborting.
+        merged['sentiment_abs'] = merged['sentiment_score'].abs()
+        corr_ext_vol, p_ext_vol = safe_corr(
+            merged['sentiment_abs'],
+            merged['volatility_10d'],
+            method='pearson'
+        )
+        print(f"    |Sentiment| vs Volatility (extremity test):")
+        print(f"      Correlation: {corr_ext_vol:+.3f}")
+        print(f"      P-value:     {p_ext_vol:.4f} {sig_star(p_ext_vol)}")
+
+    except FileNotFoundError:
         print(f"    Volatility data not available - run volitility_calculation.py first")
-        corr_vol, p_vol = np.nan, np.nan
-        corr_ext_vol, p_ext_vol = np.nan, np.nan
+    except Exception as e:
+        print(f"    Volatility correlation failed: {e}")
 
     # -----------------------------------------------------------------------
     # 1D. ABSOLUTE RETURNS AS A VOLATILITY PROXY
-    # When GARCH volatility estimates are unavailable, the absolute value
-    # of daily returns serves as a simple, model-free volatility proxy.
-    # Large absolute returns indicate high price movement regardless of
-    # direction, and are widely used in the empirical finance literature
-    # as a measure of realised market activity.
     # -----------------------------------------------------------------------
 
     print(f"\n  Sentiment vs Absolute Returns (volatility proxy):")
 
     df_clean['abs_return'] = df_clean['return'].abs()
-    corr_abs, p_abs = pearsonr(
+    corr_abs, p_abs = safe_corr(
         df_clean['sentiment_score'],
-        df_clean['abs_return']
+        df_clean['abs_return'],
+        method='pearson'
     )
     print(f"    Correlation: {corr_abs:+.3f}")
-    print(f"    P-value:     {p_abs:.4f} "
-          f"{'***' if p_abs < 0.01 else '**' if p_abs < 0.05 else '*' if p_abs < 0.1 else 'ns'}")
+    print(f"    P-value:     {p_abs:.4f} {sig_star(p_abs)}")
 
     # -----------------------------------------------------------------------
     # 1E. SPEARMAN RANK CORRELATIONS (ROBUSTNESS CHECK)
-    # These are computed for both return and absolute return to verify that
-    # Pearson results are not driven by distributional outliers. If Pearson
-    # and Spearman coefficients point in the same direction with similar
-    # magnitudes, the finding can be considered robust to distributional
-    # assumptions.
     # -----------------------------------------------------------------------
 
     print(f"\n  Spearman Rank Correlations (robustness check):")
 
-    spearman_return, p_spear_ret = spearmanr(
+    spearman_return, p_spear_ret = safe_corr(
         df_clean['sentiment_score'],
-        df_clean['return']
+        df_clean['return'],
+        method='spearman'
     )
     print(f"    Sentiment vs Return:   {spearman_return:+.3f} (p={p_spear_ret:.4f})")
 
-    spearman_abs, p_spear_abs = spearmanr(
+    spearman_abs, p_spear_abs = safe_corr(
         df_clean['sentiment_score'],
-        df_clean['abs_return']
+        df_clean['abs_return'],
+        method='spearman'
     )
     print(f"    Sentiment vs |Return|: {spearman_abs:+.3f} (p={p_spear_abs:.4f})")
 
-    # Compile all results into a structured dictionary for export
     correlations = {
         'ticker': ticker,
         'observations': len(df_clean),
+
+        # Pearson: sentiment vs return
         'corr_sentiment_return_same': corr_same_day,
         'pval_sentiment_return_same': p_same_day,
         'corr_sentiment_return_next': corr_next_day,
         'pval_sentiment_return_next': p_next_day,
+
+        # Pearson: sentiment vs volatility (requires Script 8 output)
         'corr_sentiment_volatility': corr_vol,
         'pval_sentiment_volatility': p_vol,
         'corr_sentiment_abs_volatility': corr_ext_vol,
         'pval_sentiment_abs_volatility': p_ext_vol,
+
+        # Pearson: sentiment vs |return| proxy
         'corr_sentiment_abs_return': corr_abs,
         'pval_sentiment_abs_return': p_abs,
+
+        # Spearman robustness checks (+ p-values saved for reporting)
         'spearman_sentiment_return': spearman_return,
+        'spearman_p_sentiment_return': p_spear_ret,
         'spearman_sentiment_abs_return': spearman_abs,
+        'spearman_p_sentiment_abs_return': p_spear_abs,
     }
 
     return correlations
@@ -278,21 +311,9 @@ def calculate_correlations(df, ticker):
 def regression_analysis(df, ticker):
     """
     Perform Ordinary Least Squares (OLS) regression of daily returns on
-    sentiment scores to quantify the magnitude and statistical significance
-    of the sentiment effect.
+    sentiment scores:
 
-    The regression takes the form:
         Return_t = alpha + beta * Sentiment_t + epsilon_t
-
-    Where:
-        alpha  : Intercept (baseline return independent of sentiment)
-        beta   : Regression coefficient (change in return per unit of
-                 sentiment score). A positive beta would indicate that a
-                 one-unit increase in sentiment is associated with a
-                 beta-sized increase in daily returns.
-        R²     : Proportion of return variance explained by sentiment alone.
-                 Addresses H2 directly — a statistically significant R²
-                 suggests sentiment has meaningful explanatory power.
 
     Parameters
     ----------
@@ -309,9 +330,18 @@ def regression_analysis(df, ticker):
 
     print(f"\n  OLS Regression: Return ~ Sentiment")
 
-    df_clean = df.dropna()
+    df_clean = df.dropna(subset=['sentiment_score', 'return']).copy()
 
-    from scipy.stats import linregress
+    if len(df_clean) < 3:
+        print(f"    Not enough observations to run regression.")
+        return {
+            'ticker': ticker,
+            'slope': np.nan,
+            'intercept': np.nan,
+            'r_squared': np.nan,
+            'p_value': np.nan,
+            'std_error': np.nan
+        }
 
     slope, intercept, r_value, p_value, std_err = linregress(
         df_clean['sentiment_score'],
@@ -320,8 +350,7 @@ def regression_analysis(df, ticker):
 
     print(f"    Equation:  Return = {intercept:.4f} + {slope:.4f} x Sentiment")
     print(f"    R-squared: {r_value ** 2:.4f}")
-    print(f"    P-value:   {p_value:.4f} "
-          f"{'***' if p_value < 0.01 else '**' if p_value < 0.05 else '*' if p_value < 0.1 else 'ns'}")
+    print(f"    P-value:   {p_value:.4f} {sig_star(p_value)}")
     print(f"    Std Error: {std_err:.4f}")
 
     return {
@@ -343,20 +372,12 @@ def compare_correlations(tan_corr, spy_corr):
     Directly compare the correlation magnitudes between TAN and SPY to
     evaluate Hypothesis 1.
 
-    H1 predicts that TAN, as a narrow sector ETF tracking solar energy
-    companies, will show a stronger sentiment-volatility relationship than
-    SPY, which tracks 500 diversified companies across all sectors. The
-    rationale is that sector-specific ETFs attract a more concentrated
-    investor base whose sentiment is more directly shaped by domain-specific
-    news coverage, whereas broad market ETFs are subject to a wider and
-    more diffuse set of information inputs.
-
     Parameters
     ----------
     tan_corr : dict
-        Correlation results dictionary for TAN (from calculate_correlations).
+        Correlation results dictionary for TAN.
     spy_corr : dict
-        Correlation results dictionary for SPY (from calculate_correlations).
+        Correlation results dictionary for SPY.
     """
 
     print("\n" + "=" * 60)
@@ -387,6 +408,7 @@ def compare_correlations(tan_corr, spy_corr):
     print(f"\n  Sentiment vs Next-day Return (lead-lag, relevant to H3):")
     print(f"    TAN: {tan_corr['corr_sentiment_return_next']:+.3f} (p={tan_corr['pval_sentiment_return_next']:.4f})")
     print(f"    SPY: {spy_corr['corr_sentiment_return_next']:+.3f} (p={spy_corr['pval_sentiment_return_next']:.4f})")
+
     if (tan_corr['pval_sentiment_return_next'] < 0.05
             or spy_corr['pval_sentiment_return_next'] < 0.05):
         print(f"    Statistically significant predictive relationship detected")
@@ -400,15 +422,9 @@ def compare_correlations(tan_corr, spy_corr):
 
 def create_correlation_matrix(ticker):
     """
-    Construct a full pairwise correlation matrix across all key variables
-    for a given ETF: sentiment score, daily return, trading volume, and
-    realised volatility where available.
-
-    The correlation matrix serves two purposes in the dissertation:
-    1. It provides a complete overview of inter-variable relationships,
-       allowing the examiner to assess multicollinearity and confounding.
-    2. It is a standard table in empirical finance papers and demonstrates
-       methodological rigour.
+    Construct a full pairwise correlation matrix across key variables for a
+    given ETF: sentiment score, daily return, trading volume, and realised
+    volatility (if available).
 
     Parameters
     ----------
@@ -425,18 +441,20 @@ def create_correlation_matrix(ticker):
 
     try:
         df = pd.read_csv(f'results/{ticker}_merge_prices_news.csv')
-        variables = ['sentiment_score', 'return', 'volume']
 
-        # Append volatility column if the volatility file exists
+        variables = [c for c in ['sentiment_score', 'return', 'volume'] if c in df.columns]
+
+        # Append volatility column if available
         try:
             vol_df = pd.read_csv(f'results/{ticker}_volatility_analysis.csv')
+            vol_df = vol_df.drop_duplicates(subset=['date'])
             df = df.merge(vol_df[['date', 'volatility_10d']], on='date', how='left')
-            variables.append('volatility_10d')
+            if 'volatility_10d' in df.columns:
+                variables.append('volatility_10d')
         except Exception:
-            pass  # Proceed without volatility if unavailable
+            pass
 
         corr_matrix = df[variables].corr()
-
         corr_matrix.to_csv(f'results/{ticker}_correlation_matrix.csv')
         print(f"    Saved: results/{ticker}_correlation_matrix.csv")
 
@@ -456,11 +474,11 @@ def main():
     Orchestrate the full correlation analysis pipeline for both ETFs,
     then produce a consolidated hypothesis testing summary.
 
-    This function runs the four analytical stages in sequence:
-    (1) correlation analysis, (2) regression analysis, (3) comparative
-    analysis, and (4) correlation matrix construction. Results are saved
-    to CSV and a printed summary maps each finding to the relevant
-    hypothesis, providing a direct reference for the Results chapter.
+    Stages:
+      (1) Correlation analysis
+      (2) Regression analysis
+      (3) Comparative analysis (H1)
+      (4) Correlation matrix construction
     """
 
     print("\n" + "=" * 60)
@@ -494,7 +512,6 @@ def main():
     # -----------------------------------------------------------------------
     # SAVE OUTPUTS
     # -----------------------------------------------------------------------
-
     print("\n" + "=" * 60)
     print("SAVING RESULTS")
     print("=" * 60)
@@ -511,9 +528,6 @@ def main():
 
     # -----------------------------------------------------------------------
     # HYPOTHESIS TESTING SUMMARY
-    # A structured summary mapping statistical evidence to each hypothesis.
-    # These printed results can be directly referenced when writing the
-    # Results chapter.
     # -----------------------------------------------------------------------
 
     print("\n" + "=" * 60)
@@ -522,27 +536,28 @@ def main():
 
     # H1: TAN more sentiment-sensitive than SPY
     print("\n  H1: Sentiment impacts TAN volatility more than SPY")
-    tan_sv = abs(tan_corr['corr_sentiment_volatility'])
-    spy_sv = abs(spy_corr['corr_sentiment_volatility'])
-    if tan_sv > spy_sv:
+    tan_sv = abs(tan_corr['corr_sentiment_volatility']) if not pd.isna(tan_corr['corr_sentiment_volatility']) else np.nan
+    spy_sv = abs(spy_corr['corr_sentiment_volatility']) if not pd.isna(spy_corr['corr_sentiment_volatility']) else np.nan
+
+    if not pd.isna(tan_sv) and not pd.isna(spy_sv) and tan_sv > spy_sv:
         print(f"    Result:    SUPPORTED")
         print(f"    TAN corr:  {tan_corr['corr_sentiment_volatility']:+.3f}")
         print(f"    SPY corr:  {spy_corr['corr_sentiment_volatility']:+.3f}")
         print(f"    Magnitude difference: {tan_sv - spy_sv:.3f}")
     else:
-        print(f"    Result:    NOT SUPPORTED by correlation evidence")
+        print(f"    Result:    NOT SUPPORTED by correlation evidence (or volatility data missing)")
 
     # H2: Sentiment improves volatility modelling
     print("\n  H2: Sentiment improves volatility modelling")
-    if (tan_corr['pval_sentiment_volatility'] < 0.05
-            or spy_corr['pval_sentiment_volatility'] < 0.05):
+    if ((not pd.isna(tan_corr['pval_sentiment_volatility']) and tan_corr['pval_sentiment_volatility'] < 0.05) or
+            (not pd.isna(spy_corr['pval_sentiment_volatility']) and spy_corr['pval_sentiment_volatility'] < 0.05)):
         print(f"    Result:    SUPPORTED")
         print(f"    TAN p-value: {tan_corr['pval_sentiment_volatility']:.4f}")
         print(f"    SPY p-value: {spy_corr['pval_sentiment_volatility']:.4f}")
         print(f"    Statistically significant sentiment-volatility link detected")
     else:
         print(f"    Result:    WEAK SUPPORT")
-        print(f"    Correlations present but below the 5% significance threshold")
+        print(f"    Correlations present but below the 5% significance threshold (or volatility data missing)")
 
     # H3: Sentiment strategy vs buy-and-hold
     print("\n  H3: Sentiment signals can outperform passive strategies")
@@ -550,26 +565,21 @@ def main():
     print(f"    Key metrics: Sharpe ratio, cumulative return, max drawdown")
 
     # -----------------------------------------------------------------------
-    # STATISTICAL SIGNIFICANCE TABLE
-    # Significance codes follow the standard academic convention:
-    # *** p < 0.01, ** p < 0.05, * p < 0.1, ns = not significant
+    # SIGNIFICANCE SUMMARY TABLE
     # -----------------------------------------------------------------------
 
     print("\n" + "=" * 60)
     print("SIGNIFICANCE SUMMARY (*** p<0.01, ** p<0.05, * p<0.1, ns)")
     print("=" * 60)
 
-    for ticker, corr in [('TAN', tan_corr), ('SPY', spy_corr)]:
-        print(f"\n  {ticker}:")
-        print(f"    Sentiment vs Return:     {corr['corr_sentiment_return_same']:+.3f} "
-              f"{'***' if corr['pval_sentiment_return_same'] < 0.01 else '**' if corr['pval_sentiment_return_same'] < 0.05 else '*' if corr['pval_sentiment_return_same'] < 0.1 else 'ns'}")
-        print(f"    Sentiment vs Volatility: {corr['corr_sentiment_volatility']:+.3f} "
-              f"{'***' if corr['pval_sentiment_volatility'] < 0.01 else '**' if corr['pval_sentiment_volatility'] < 0.05 else '*' if corr['pval_sentiment_volatility'] < 0.1 else 'ns'}")
+    for tkr, corr in [('TAN', tan_corr), ('SPY', spy_corr)]:
+        print(f"\n  {tkr}:")
+        print(f"    Sentiment vs Return:     {corr['corr_sentiment_return_same']:+.3f} {sig_star(corr['pval_sentiment_return_same'])}")
+        print(f"    Sentiment vs Volatility: {corr['corr_sentiment_volatility']:+.3f} {sig_star(corr['pval_sentiment_volatility'])}")
 
     print("\n" + "=" * 60)
     print("ANALYSIS PIPELINE COMPLETE")
-    print("=" * 60)
-    print("\nAll objectives addressed. Results ready for dissertation chapters.")
+
 
 
 # ============================================

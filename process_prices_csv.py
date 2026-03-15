@@ -122,7 +122,6 @@ def convert_yahoo_csv(input_filename: str, ticker: str) -> pd.DataFrame | None:
 
         clean_df["date"] = pd.to_datetime(
             date_raw,
-            format="%Y-%m-%d",
             errors="coerce"
         )
 

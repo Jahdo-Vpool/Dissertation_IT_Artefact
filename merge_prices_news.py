@@ -126,9 +126,15 @@ def merge_data(ticker):
     # diagnose failures downstream.
 
     price_start = prices['date'].min()
-    price_end   = prices['date'].max()
-    news_start  = sentiment['date'].min()
-    news_end    = sentiment['date'].max()
+    price_end = prices['date'].max()
+    news_start = sentiment['date'].min()
+    news_end = sentiment['date'].max()
+
+    # Ensure consistent string comparison
+    price_start = str(price_start)
+    price_end = str(price_end)
+    news_start = str(news_start)
+    news_end = str(news_end)
 
     print(f"\n  Date Range Validation:")
     print(f"    Prices:    {price_start} to {price_end}")

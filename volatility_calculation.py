@@ -260,6 +260,7 @@ def analyze_volatility(ticker):
     print(f"\n  Fitting GARCH(1,1) Model (Baseline)...")
 
     garch_result = fit_garch_model(df['return'])
+    persistence = np.nan
 
     if garch_result is not None:
         print(f"    GARCH(1,1) fitted successfully")

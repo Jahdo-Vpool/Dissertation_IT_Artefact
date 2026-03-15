@@ -63,7 +63,7 @@ Dependencies:
     - warnings : Suppresses convergence warnings from the arch library
 
 Usage:
-    python volitility_calculation.py
+    python volatility_calculation.py
 ================================================================================
 """
 

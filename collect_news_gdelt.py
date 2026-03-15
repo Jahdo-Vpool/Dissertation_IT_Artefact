@@ -33,7 +33,7 @@ Outputs:
     - data/SPY_news.csv  : News articles related to the broad US equity market
 
 Pipeline Position:
-    Script 1 of 11. Output feeds directly into Script 2 (analyze_sentiment.py).
+    Script 1 of 10. Output feeds directly into Script 2 (analyze_sentiment.py).
 
 Dependencies:
     - gdeltdoc   : Python wrapper for the GDELT Document 2.0 API

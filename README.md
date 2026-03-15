@@ -62,18 +62,18 @@ Generate       Evaluate       Visualise      Model          Correlation       Hy
 Signals        Performance    Results        Volatility     Analysis          Results
 ```
 
-| Script | File | Purpose |
-|--------|------|---------|
-| 1 | `collect_news_gdelt.py` | Collect financial news articles via GDELT API |
-| 2 | `analyze_sentiment.py` | Score articles with VADER and FinBERT |
-| 3 | `process_prices_csv.py` | Clean and process Yahoo Finance price data |
-| 4 | `merge_prices_news.py` | Align sentiment and price data on trading calendar |
-| 5 | `trading_signals.py` | Generate BUY/SELL/HOLD signals from sentiment |
-| 6 | `calculate_metrics.py` | Evaluate strategy performance vs buy-and-hold |
-| 7 | `plots.py` | Produce all dissertation figures at 300 DPI |
-| 8 | `volitility_calculation.py` | Fit GARCH(1,1) and compute realized volatility |
-| 9 | `correlation_analysis.py` | Statistical correlation and regression analysis |
-| 10 | `hypothesis_results.py` | Consolidate evidence and report hypothesis outcomes |
+| Script | File                        | Purpose |
+|--------|-----------------------------|---------|
+| 1 | `collect_news_gdelt.py`     | Collect financial news articles via GDELT API |
+| 2 | `analyze_sentiment.py`      | Score articles with VADER and FinBERT |
+| 3 | `process_prices_csv.py`     | Clean and process Yahoo Finance price data |
+| 4 | `merge_prices_news.py`      | Align sentiment and price data on trading calendar |
+| 5 | `trading_signals.py`        | Generate BUY/SELL/HOLD signals from sentiment |
+| 6 | `calculate_metrics.py`      | Evaluate strategy performance vs buy-and-hold |
+| 7 | `plots.py`                  | Produce all dissertation figures at 300 DPI |
+| 8 | `volatility_calculation.py` | Fit GARCH(1,1) and compute realized volatility |
+| 9 | `correlation_analysis.py`   | Statistical correlation and regression analysis |
+| 10 | `hypothesis_results.py`     | Consolidate evidence and report hypothesis outcomes |
 
 ---
 
@@ -109,6 +109,11 @@ project/
 │   └── hypothesis_testing_summary.csv  # Final hypothesis outcomes (Script 10)
 │
 ├── plots/                         # All dissertation figures (Script 7)
+│   ├── SPY_cumulative_returns.png
+│   ├── SPY_sentiment_returns_scatter.png
+│   ├── SPY_trading_signals.png
+│   ├── SPY_drawdown_comparison.png
+│   ├── SPY_sentiment_distribution.png
 │   ├── TAN_cumulative_returns.png
 │   ├── TAN_sentiment_returns_scatter.png
 │   ├── TAN_trading_signals.png
@@ -123,7 +128,7 @@ project/
 ├── trading_signals.py
 ├── calculate_metrics.py
 ├── plots.py
-├── volitility_calculation.py
+├── volatility_calculation.py
 ├── correlation_analysis.py
 ├── hypothesis_results.py
 └── README.md
@@ -193,7 +198,7 @@ python calculate_metrics.py
 python plots.py
 
 # Step 8 — Fit GARCH model and compute volatility
-python volitility_calculation.py
+python volatility_calculation.py
 
 # Step 9 — Run correlation and regression analysis
 python correlation_analysis.py
@@ -270,11 +275,6 @@ depends on the prior day's position.
 ---
 
 ## References
-
-The following references are drawn from the dissertation literature review
-and have been validated by the author. Three additional references cited
-in the code comments (Bollerslev, 1986; Engle, 1982; Hutto and Gilbert,
-2014) are pending author validation and are not listed here until confirmed.
 
 **Behavioural Finance and Sentiment**
 

@@ -39,7 +39,7 @@ Outputs:
 
 Pipeline Position:
     Script 4 of 10. Output feeds into Script 5 (trading_signals.py),
-    Script 8 (volitility_calculation.py), and Script 9 (correlation_analysis.py).
+    Script 8 (volatility_calculation.py), and Script 9 (correlation_analysis.py).
 
 Usage:
     python merge_prices_news.py

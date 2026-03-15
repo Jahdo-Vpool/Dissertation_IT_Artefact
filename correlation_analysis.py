@@ -235,7 +235,7 @@ def calculate_correlations(df, ticker):
         print(f"      P-value:     {p_ext_vol:.4f} {sig_star(p_ext_vol)}")
 
     except FileNotFoundError:
-        print(f"    Volatility data not available - run volitility_calculation.py first")
+        print(f"    Volatility data not available - run volatility_calculation.py first")
     except Exception as e:
         print(f"    Volatility correlation failed: {e}")
 

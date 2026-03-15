@@ -522,7 +522,7 @@ def main():
     print("    - TAN_drawdown_comparison.png")
 
     print("\nAll figures saved at 300 DPI — ready for dissertation insertion.")
-    print("\nNext step: Run volitility_calculation.py")
+    print("\nNext step: Run volatility_calculation.py")
 
 
 # ============================================

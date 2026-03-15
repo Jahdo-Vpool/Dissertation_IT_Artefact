@@ -3,7 +3,7 @@ pandas>=2.0.0
 numpy>=1.24.0
 
 # News collection
-newsapi-python>=0.2.7
+newsapi-python>=0.2.7 #Was not used
 gdeltdoc>=1.12.0
 
 
@@ -15,6 +15,7 @@ vaderSentiment>=3.3.2
 
 # Plotting
 matplotlib>=3.7.0
+seaborn>=0.12.0
 
 # Environment variables
 python-dotenv>=1.0.0

@@ -9,7 +9,6 @@ Purpose:
     a single combined score. This combined score becomes the primary sentiment
     variable used throughout the rest of the pipeline.
 
-Academic Context:
     This script directly addresses Dissertation Objective 1 — extracting and
     quantifying financial sentiment from news articles. Sentiment analysis
     converts unstructured text into a numerical variable that can be correlated

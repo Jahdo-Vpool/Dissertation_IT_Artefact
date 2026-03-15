@@ -328,11 +328,12 @@ def analyze_volatility(ticker):
     # STAGE 4: VOLATILITY CLUSTERING TEST
     # Volatility clustering — the tendency for large price movements to
     # be followed by further large movements — is one of the most robust
-    # stylised facts in financial econometrics (Mandelbrot, 1963; Engle,
-    # 1982). It is tested here using the autocorrelation of squared
-    # returns at lags 1 and 2. A positive autocorrelation confirms that
-    # squared returns today predict squared returns tomorrow, validating
-    # the use of GARCH modelling over simpler homoskedastic approaches.
+    # stylised facts in financial econometrics and a core assumption
+    # underlying GARCH modelling (Engle, 2001). It is tested here using
+    # the autocorrelation of squared returns at lags 1 and 2. A positive
+    # autocorrelation confirms that squared returns today predict squared
+    # returns tomorrow, validating the use of GARCH modelling over
+    # simpler homoskedastic approaches.
     # ------------------------------------------------------------------
 
     print(f"\n  Volatility Clustering Analysis...")

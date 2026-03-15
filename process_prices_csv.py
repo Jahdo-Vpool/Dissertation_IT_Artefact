@@ -122,8 +122,8 @@ def convert_yahoo_csv(input_filename: str, ticker: str) -> pd.DataFrame | None:
 
         clean_df["date"] = pd.to_datetime(
             date_raw,
-            errors="coerce",
-            dayfirst=True  # Handles DD/MM/YYYY format used in some regional exports
+            format="%Y-%m-%d",
+            errors="coerce"
         )
 
         # Remove rows where the date could not be parsed. These rows would
@@ -142,12 +142,12 @@ def convert_yahoo_csv(input_filename: str, ticker: str) -> pd.DataFrame | None:
         # the true economic return to an investor holding the ETF. Where only
         # 'Close' or 'close' is available, that is used as a fallback.
 
-        if "Close" in df.columns:
-            close_raw = df["Close"]
-            close_source = "Close"
-        elif "Adj Close" in df.columns:
+        if "Adj Close" in df.columns:
             close_raw = df["Adj Close"]
             close_source = "Adj Close"
+        elif "Close" in df.columns:
+            close_raw = df["Close"]
+            close_source = "Close"
         elif "close" in df.columns:
             close_raw = df["close"]
             close_source = "close"
